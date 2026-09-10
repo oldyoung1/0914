@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水災與颱風防災小達人演練</title>
+    <style>
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft JhengHei", sans-serif; }
+        body { background-color: #f0f4f8; margin: 0; padding: 0; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; }
+        .app-container { width: 100%; max-width: 480px; min-height: 100vh; background-color: #ffffff; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.1); position: relative; }
+        .header { background-color: #007bf5; color: #ffffff; padding: 18px 20px; text-align: center; font-size: 1.25em; font-weight: bold; }
+        .content { padding: 20px; flex: 1; display: flex; flex-direction: column; }
+        .screen { display: none; flex-direction: column; width: 100%; }
+        .screen.active { display: flex; }
+        .input-group { margin-top: 30px; display: flex; flex-direction: column; gap: 12px; }
+        input[type="text"] { padding: 16px; font-size: 1.1em; border: 2px solid #bcd0e6; border-radius: 12px; outline: none; text-align: center; }
+        input[type="text"]:focus { border-color: #007bf5; }
+        .progress-bar-bg { background-color: #e0e6ed; height: 10px; border-radius: 5px; margin-bottom: 15px; overflow: hidden; }
+        .progress-bar-fill { background-color: #007bf5; height: 100%; width: 0%; transition: width 0.3s ease; }
+        .question-number { font-size: 0.95em; color: #666; font-weight: bold; margin-bottom: 8px; }
+        .question-title { font-size: 1.2em; font-weight: bold; color: #1a252f; line-height: 1.5; margin-bottom: 20px; background-color: #eef6ff; padding: 16px; border-radius: 12px; border-left: 5px solid #007bf5; }
+        .options-container { display: flex; flex-direction: column; gap: 12px; }
+        .btn-option { width: 100%; padding: 16px; border: 2px solid #d0d7de; background-color: #ffffff; border-radius: 12px; font-size: 1.05em; text-align: left; line-height: 1.4; color: #24292f; cursor: pointer; transition: all 0.2s ease; }
+        .btn-option:active { background-color: #e6f0ff; border-color: #007bf5; transform: scale(0.98); }
+        .btn-primary { width: 100%; padding: 16px; background-color: #007bf5; color: white; border: none; border-radius: 12px; font-size: 1.1em; font-weight: bold; cursor: pointer; margin-top: 20px; box-shadow: 0 4px 10px rgba(0, 123, 245, 0.3); }
+        .btn-primary:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
+        .result-summary { text-align: center; background-color: #eef6ff; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        .score-num { font-size: 2.5em; color: #007bf5; font-weight: bold; }
+        .wrong-card { background-color: #fff0f0; border: 1px solid #ffcdd2; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+        .wrong-q-title { font-weight: bold; color: #c62828; margin-bottom: 8px; font-size: 1.05em; }
+        .wrong-answer-info { font-size: 0.95em; line-height: 1.5; color: #333; }
+        .analysis-card { background-color: #fff8e1; border: 1px solid #ffe082; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+        .analysis-rank { font-weight: bold; color: #d84315; font-size: 1.1em; margin-bottom: 6px; }
+        .list-item { display: flex; justify-content: space-between; padding: 12px; background: #f8f9fa; border-radius: 8px; margin-bottom: 8px; font-size: 1em; }
+        .loading-text { text-align: center; color: #666; font-weight: bold; padding: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="header">🌧️ 水災與颱風防災小達人演練</div>
+    
+    <div class="content">
+        <!-- 畫面 1：學員姓名輸入頁 -->
+        <div id="screen-start" class="screen active">
+            <h2 style="text-align: center; color: #333;">歡迎參加防災小測驗</h2>
+            <p style="text-align: center; color: #666; line-height: 1.6;">請輸入您的名字開始測驗，考考自己對水災與颱風應變的了解！</p>
+            <div class="input-group">
+                <input type="text" id="user-name" placeholder="請在此輸入您的名字..." />
+                <button class="btn-primary" onclick="startQuiz()">開始答題 🚀</button>
+            </div>
+        </div>
+
+        <!-- 畫面 2：答題頁面 -->
+        <div id="screen-quiz" class="screen">
+            <div class="progress-bar-bg"><div id="progress-bar" class="progress-bar-fill"></div></div>
+            <div id="q-number" class="question-number">第 1 / 15 題</div>
+            <div id="q-title" class="question-title">題目載入中...</div>
+            <div id="q-options" class="options-container"></div>
+        </div>
+
+        <!-- 畫面 3：個人結果頁（分數與錯題解析） -->
+        <div id="screen-result" class="screen">
+            <div class="result-summary">
+                <h3 id="result-user-name" style="margin: 0 0 10px 0;">學員</h3>
+                <div>您的答對題數：</div>
+                <div class="score-num" id="score-text">0 / 15</div>
+                <div id="upload-status" style="font-size: 0.85em; color: #666; margin-top: 5px;">正在將成績上傳至雲端...</div>
+            </div>
+
+            <div id="wrong-section">
+                <h4 style="color: #c62828; margin-bottom: 12px;">🔍 答錯題項對照與正確答案：</h4>
+                <div id="wrong-list"></div>
+            </div>
+
+            <button id="btn-to-leaderboard" class="btn-primary" onclick="showLeaderboard()">下一頁：觀看全班學員成績 📊</button>
+        </div>
+
+        <!-- 畫面 4：所有人答題狀況頁（雲端排行榜） -->
+        <div id="screen-leaderboard" class="screen">
+            <h3 style="text-align: center; color: #007bf5;">📊 全體學員答題狀況</h3>
+            <div id="leaderboard-list" style="margin-top: 15px;"></div>
+            <button class="btn-primary" onclick="showTopWrong()">下一頁：最多人答錯前三名 ⚠️</button>
+        </div>
+
+        <!-- 畫面 5：全班最多人答錯的前三名（雲端即時統計） -->
+        <div id="screen-top-wrong" class="screen">
+            <h3 style="text-align: center; color: #d84315;">⚠️ 全體最常答錯前三名</h3>
+            <p style="text-align: center; color: #666; font-size: 0.9em;">(依據所有人雲端答題紀錄統計)</p>
+            <div id="top-wrong-list" style="margin-top: 15px;"></div>
+            <button class="btn-primary" onclick="restartApp()">重新開始 / 換下一位 🔄</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ⚠️⚠️ 請在此處替換為您部署 Apps Script 獲得的網頁應用程式 URL ⚠️⚠️
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx6rjeUYBDTItF9TZzMRvyfcXk0TGcCDBq76eoBaDi0PgNMln1piOWqz78yspcmbo4HaA/exec";
+
+    const questions = [
+        { id: 1, title: "1. 大雨來之前，想知道台南有沒有淹水危險，下面哪一個方式是「錯誤」的？", options: ["A. 下載「台南水情即時通」手機 App 查看", "B. 看看手機有沒有收到政府發的「防災警訊簡訊」", "C. 撥打「165 反詐騙專線」詢問淹水消息", "D. 看電視新聞或是國家災害防救中心（NCDR）的訊息"], ans: 2, explain: "165 是檢舉詐騙電話。想知道淹水消息要看新聞、手機防災簡訊或台南水情 App。" },
+        { id: 2, title: "2. 如果手機突然發出很大聲的「防災警訊簡訊」，下面哪一種做法是「錯誤」的？", options: ["A. 這是政府發的緊急通知，要立刻打開看寫了什麼", "B. 這是假的試驗，直接關掉不用理它", "C. 照著簡訊裡的提示，趕快做好防災準備", "D. 提醒家人朋友一起注意安全"], ans: 1, explain: "防災警訊是政府在緊急時刻發出的警告，收到時一定要打開看並做好準備。" },
+        { id: 3, title: "3. 為了防止大水沖進家門，堆放沙包的方法哪一個是「錯誤」的？", options: ["A. 沙包要像疊磚塊一樣，交錯堆疊才穩固", "B. 沙包的袋口要朝向家門裡面（內側）", "C. 沙包隨便亂擺就好，中間留一些縫隙讓水流過去", "D. 疊沙包前可以在底下先鋪一層塑膠布，擋水效果更好"], ans: 2, explain: "沙包要像疊磚頭一樣密合交錯，不能留縫隙，否則大水還是會滲進家裡。" },
+        { id: 4, title: "4. 颱風大雨要來了，家裡做防災準備，下面哪一個做法是「錯誤」的？", options: ["A. 清理家門口的排水孔，把垃圾和樹葉拿走", "B. 把容易淹水地方的電器和貴重物品往高處搬", "C. 裝好防水閘門，並檢查能不能關緊", "D. 把陽台的排水孔用膠帶全部封死"], ans: 3, explain: "封死陽台排水孔會讓雨水排不出去，反而會積水倒灌進室內。" },
+        { id: 5, title: "5. 外面淹水已經很高、沒辦法安全出門時，下面哪一個做法是「錯誤」的？", options: ["A. 趕快跑去二樓以上的安全高處（進行垂直避難）", "B. 跑到地下室去搬東西或看車子", "C. 在高處安心等待救援，不要冒險涉水", "D. 準備好手機和手電筒，隨時注意安全"], ans: 1, explain: "地下室最容易快速進水，淹水時千萬不能跑去地下室，要往高樓層走才安全。" },
+        { id: 6, title: "6. 家裡開始進水時，為了防止觸電危險，下面哪一個做法是「錯誤」的？", options: ["A. 第一時間先去關掉家裡的總電源開關", "B. 關掉家裡的瓦斯總開關", "C. 繼續插著延長線使用電風扇把水吹乾", "D. 腳濕濕的時候不要去碰任何插頭"], ans: 2, explain: "水會導電，家裡進水時要先關閉總電源，絕對不能繼續使用插座或電器。" },
+        { id: 7, title: "7. 開車或騎車遇到前面馬路淹水很深，下面哪一個做法是「錯誤」的？", options: ["A. 加快車速衝過去，覺得衝過去就沒事了", "B. 絕對不強行通過，立刻找路改道", "C. 如果車子熄火卡在水裡，立刻開門離開車子往高處走", "D. 水深超過半個車輪時就不硬騎或硬開"], ans: 0, explain: "淹水時硬衝會讓引擎進水熄火，水底下也可能有人孔蓋掉落的危險。" },
+        { id: 8, title: "8. 大水退去後整理家園，關於吃的和喝的，下面哪一個做法是「錯誤」的？", options: ["A. 被大水泡過的食物全部丟掉不吃", "B. 泡過水的食物洗乾淨煮沸後就可以繼續吃", "C. 飲用水一定要徹底煮沸，或是喝瓶裝水", "D. 水龍頭流出來的水要確定乾淨了才可以拿來煮飯"], ans: 1, explain: "被大水泡過的食物就算洗過煮過還是很髒，必須通通丟掉。" },
+        { id: 9, title: "9. 為了防止水災後生病或長蚊子，整理環境時哪一個做法是「錯誤」的？", options: ["A. 用稀釋的漂白水擦拭家具和地板來消毒", "B. 把積水容器的水倒掉，並刷洗乾淨（巡、倒、清、刷）", "C. 只要把地板上的泥沙用清水沖掉就好，不用消毒", "D. 清理時穿雨鞋、戴手套，保護皮膚不要碰到髒水"], ans: 2, explain: "淹水過後環境會有許多細菌，一定要用漂白水消毒才能預防傳染病。" },
+        { id: 10, title: "10. 家裡淹水想要申請政府的補助或減稅，在開始整理打掃前，哪一個做法是「錯誤」的？", options: ["A. 趕快拿手機把淹水的痕跡和壞掉的東西拍照留存", "B. 拍照時要拍到牆壁上水痕有多高", "C. 還沒拍照就先把壞掉的東西通通丟掉", "D. 多拍幾張房屋受損的全景照片"], ans: 2, explain: "申請補助需要照片當作證據，打掃前「一定要先拍照」留存標示。" },
+        { id: 11, title: "11. 災後如果需要申請補助或物資幫忙，下面哪一個求助管道是「錯誤」的？", options: ["A. 打電話給「1999 市民服務專線」詢問", "B. 打電話給「119」叫消防員送物資到家裡", "C. 請區公所的社會課協助", "D. 找當地的里長或里幹事幫忙"], ans: 1, explain: "119 是留給急救使用的，申請物資或補助要找 1999、區公所或里長。" },
+        { id: 12, title: "12. 災後環境很潮濕容易長黴菌，下面哪一個照顧身體的做法是「錯誤」的？", options: ["A. 清潔家園時要戴手套、穿雨鞋，保護手腳不被割傷", "B. 把淹過水的濕沙發和濕床墊繼續留著用，不處理", "C. 家裡打開除濕機或保持通風，讓牆壁快點乾", "D. 如果手腳有傷口碰到髒水，要立刻用乾淨清水洗淨並消毒"], ans: 1, explain: "泡過水的床墊和沙發會長滿黴菌和細菌，繼續睡會生病或過敏。" },
+        { id: 13, title: "13. 淹水過後，如果發現自己或家人一直很緊張、睡不好、心情很不好，下面哪一個做法是「錯誤」的？", options: ["A. 找親朋好友講講話、吐吐苦水", "B. 自己把難過壓在心裡，不跟任何人說", "C. 保持規律的作息，按時吃飯睡覺", "D. 如果心情難過超過兩週，可以找社工或心理諮商幫忙"], ans: 1, explain: "遇到天災心裡會害怕是正常的，要多跟家人朋友聊聊天釋放壓力。" },
+        { id: 14, title: "14. 你是服藥訓練三級的同學，知道明天可能放颱風或豪雨假，下面哪個做法是「正確」的？", options: ["A. 預測隔天放假，比平常晚睡或花更多時間做休閒活動", "B. 立刻聯繫朋友或家人討論放假要出去哪裡逛街", "C. 知道宣布停班停課後，把手機丟在一邊開心享受放假", "D. 知道停班停課後，注意手機或家裡電話等待老師聯繫討論領藥的方式與時間。"], ans: 3, explain: "停班停課時，應隨時注意電話與訊息，等待老師聯繫安排領藥時間。" },
+        { id: 15, title: "15. 停班停課時，你發現自己藥物有缺少，同時身體也非常不舒服，但你無法聯繫上家人、老師，下列怎麼做是「正確」的？", options: ["A. 好好睡一覺，什麼都不管", "B. 玩遊戲轉移注意力", "C. 尋求醫療協助，前往急診或打電話詢問附近有開的身心科診所", "D. 尋求里長協助"], ans: 2, explain: "藥物缺少且身體極度不適時，應直接前往急診或聯絡有開診的身心科診所。" }
+    ];
+
+    let currentQuestionIndex = 0, userName = "", userAnswers = [], wrongQuestionIDs = [], globalHistory = [];
+
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    function startQuiz() {
+        const nameInput = document.getElementById('user-name').value.trim();
+        if (!nameInput) { alert('請先輸入您的名字喔！'); return; }
+        userName = nameInput; currentQuestionIndex = 0; userAnswers = []; wrongQuestionIDs = [];
+        showScreen('screen-quiz'); renderQuestion();
+    }
+
+    function renderQuestion() {
+        const q = questions[currentQuestionIndex];
+        document.getElementById('q-number').innerText = `第 ${currentQuestionIndex + 1} / ${questions.length} 題`;
+        document.getElementById('progress-bar').style.width = `${((currentQuestionIndex + 1) / questions.length) * 100}%`;
+        document.getElementById('q-title').innerText = q.title;
+        const optionsContainer = document.getElementById('q-options');
+        optionsContainer.innerHTML = '';
+        q.options.forEach((optText, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-option';
+            btn.innerText = optText;
+            btn.onclick = () => selectOption(index);
+            optionsContainer.appendChild(btn);
+        });
+    }
+
+    function selectOption(selectedIndex) {
+        const q = questions[currentQuestionIndex];
+        userAnswers.push(selectedIndex);
+        if (selectedIndex !== q.ans) wrongQuestionIDs.push(q.id);
+        currentQuestionIndex++;
+        if (currentQuestionIndex < questions.length) renderQuestion();
+        else finishQuiz();
+    }
+
+    function finishQuiz() {
+        let score = 0;
+        userAnswers.forEach((ans, idx) => { if (ans === questions[idx].ans) score++; });
+
+        document.getElementById('result-user-name').innerText = `${userName} 同學的測驗結果`;
+        document.getElementById('score-text').innerText = `${score} / ${questions.length}`;
+
+        // 渲染個人錯題清單
+        const wrongListContainer = document.getElementById('wrong-list');
+        wrongListContainer.innerHTML = '';
+        if (wrongQuestionIDs.length === 0) {
+            wrongListContainer.innerHTML = '<p style="color: #2e7d32; font-weight: bold; text-align: center;">🎉 太棒了！您全部答對了！</p>';
+        } else {
+            wrongQuestionIDs.forEach(qId => {
+                const q = questions.find(item => item.id === qId);
+                const card = document.createElement('div');
+                card.className = 'wrong-card';
+                card.innerHTML = `<div class="wrong-q-title">${q.title}</div><div class="wrong-answer-info"><span style="color:#c62828;">❌ 您的選擇：${q.options[userAnswers[qId-1]]}</span><br><span style="color:#2e7d32; font-weight:bold;">✅ 正確答案：${q.options[q.ans]}</span><br><div style="margin-top:6px; background:#fff; padding:8px; border-radius:6px;">💡 觀念：${q.explain}</div></div>`;
+                wrongListContainer.appendChild(card);
+            });
+        }
+
+        showScreen('screen-result');
+
+        // 上傳至 Google 試算表雲端
+        fetch(GAS_API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: "save", name: userName, score: score, wrongIDs: wrongQuestionIDs })
+        }).then(() => {
+            document.getElementById('upload-status').innerText = "✅ 成績已成功同步至雲端資料庫！";
+        }).catch(err => {
+            document.getElementById('upload-status').innerText = "⚠️ 雲端連線異常，但本地紀錄仍有效。";
+        });
+    }
+
+    // 從雲端抓取所有人資料並顯示排行榜
+    function showLeaderboard() {
+        showScreen('screen-leaderboard');
+        const listContainer = document.getElementById('leaderboard-list');
+        listContainer.innerHTML = '<div class="loading-text">⏳ 正在從雲端同步所有人成績...</div>';
+
+        fetch(GAS_API_URL)
+            .then(res => res.json())
+            .then(data => {
+                globalHistory = data;
+                listContainer.innerHTML = '';
+                if (data.length === 0) {
+                    listContainer.innerHTML = '<p style="text-align:center;">目前雲端尚無紀錄。</p>';
+                    return;
+                }
+                data.sort((a, b) => b.score - a.score);
+                data.forEach((record, idx) => {
+                    const item = document.createElement('div');
+                    item.className = 'list-item';
+                    item.innerHTML = `<span><strong>${idx + 1}. ${record.name}</strong></span><span style="color:#007bf5; font-weight:bold;">答對 ${record.score} / 15 題</span>`;
+                    listContainer.appendChild(item);
+                });
+            })
+            .catch(() => {
+                listContainer.innerHTML = '<p style="text-align:center; color:red;">無法連線至雲端資料庫。</p>';
+            });
+    }
+
+    // 統計所有人最常答錯前三名
+    function showTopWrong() {
+        showScreen('screen-top-wrong');
+        const topWrongContainer = document.getElementById('top-wrong-list');
+        topWrongContainer.innerHTML = '<div class="loading-text">⏳ 正在計算全班最常答錯的題目...</div>';
+
+        const wrongCounts = {};
+        questions.forEach(q => wrongCounts[q.id] = 0);
+
+        globalHistory.forEach(record => {
+            if (record.wrongIDs && Array.isArray(record.wrongIDs)) {
+                record.wrongIDs.forEach(id => wrongCounts[id] = (wrongCounts[id] || 0) + 1);
+            }
+        });
+
+        const sortedWrong = Object.keys(wrongCounts)
+            .map(id => ({ id: parseInt(id), count: wrongCounts[id] }))
+            .sort((a, b) => b.count - a.count)
+            .filter(item => item.count > 0)
+            .slice(0, 3);
+
+        topWrongContainer.innerHTML = '';
+        if (sortedWrong.length === 0) {
+            topWrongContainer.innerHTML = '<p style="text-align:center; color: #2e7d32;">太厲害了！大家表現良好，沒有特別高頻率答錯的題目！</p>';
+        } else {
+            const rankLabels = ["🥇 答錯率第 1 名", "🥈 答錯率第 2 名", "🥉 答錯率第 3 名"];
+            sortedWrong.forEach((item, index) => {
+                const q = questions.find(qItem => qItem.id === item.id);
+                const card = document.createElement('div');
+                card.className = 'analysis-card';
+                card.innerHTML = `<div class="analysis-rank">${rankLabels[index]} (全班累積錯 ${item.count} 次)</div><div style="font-weight:bold; margin-bottom:8px;">${q.title}</div><div style="color:#2e7d32; font-weight:bold; margin-bottom:4px;">✅ 正確答案：${q.options[q.ans]}</div><div style="color:#555; font-size:0.95em;">💡 宣導重點：${q.explain}</div>`;
+                topWrongContainer.appendChild(card);
+            });
+        }
+    }
+
+    function restartApp() {
+        document.getElementById('user-name').value = '';
+        document.getElementById('upload-status').innerText = '正在將成績上傳至雲端...';
+        showScreen('screen-start');
+    }
+</script>
+
+</body>
+</html>
